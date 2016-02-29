@@ -105,7 +105,7 @@ if (!$included) {
 		}
 
 	//set the fax directory
-		$fax_dir = $_SESSION['switch']['storage']['dir'].'/fax/'.$_SESSION['domain_name'];
+		$fax_dir = '/mnt/remotenfs'.'/fax/'.$_SESSION['domain_name'];
 
 	// set fax cover font to generate pdf
 		$fax_cover_font = $_SESSION['fax']['cover_font']['text'];
@@ -720,7 +720,7 @@ function fax_split_dtmf(&$fax_number, &$fax_dtmf){
 			else {
 				//send the external call
 				$fax_uri = $route_array[0];
-				$t38 = "fax_enable_t38=true,fax_enable_t38_request=true,";
+				$t38 = "fax_enable_t38=false,fax_enable_t38_request=false,";
 			}
 
 			if ($fax_send_mode != 'queue') {
