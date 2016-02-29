@@ -37,7 +37,7 @@
 	debug["info"] = false;
 
 --only run the script a single time 
-	runonce = true
+	runonce = false
 --connect to the database
 	require "resources.functions.database_handle";
 	dbh = database_handle('system');
