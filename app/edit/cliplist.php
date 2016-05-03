@@ -115,13 +115,13 @@ echo "\n";
 echo "    }\n";
 echo "</script>";
 
-echo "<SCRIPT LANGUAGE=\"JavaScript\">\n";
 //echo "// ---------------------------------------------\n";
 //echo "// --- http://www.codeproject.com/jscript/dhtml_treeview.asp\n";
 //echo "// --- Name:    Easy DHTML Treeview           --\n";
 //echo "// --- Author:  D.D. de Kerf                  --\n";
 //echo "// --- Version: 0.2          Date: 13-6-2001  --\n";
 //echo "// ---------------------------------------------\n";
+echo "<script language='JavaScript'>\n";
 echo "function Toggle(node) {\n";
 echo "	// Unfold the branch if it isn't visible\n";
 echo "	if (node.nextSibling.style.display == 'none')	{\n";
@@ -133,106 +133,90 @@ echo "  		node.nextSibling.style.display = 'none';\n";
 echo "	}\n";
 echo "\n";
 echo "}\n";
-echo "</SCRIPT>";
+echo "</script>";
 
 // keyboard shortcut bindings
 echo "<script language='JavaScript' type='text/javascript' src='".PROJECT_PATH."/resources/jquery/jquery-1.11.1.js'></script>\n";
-echo "<script>\n";
-echo "	$(window).keypress(function(event) {\n";
-echo "		//save file [Ctrl+S]\n";
-echo "		if ((event.which == 115 && event.ctrlKey) || (event.which == 19)) {\n";
-echo "			parent.$('form#frm_edit').submit();\n";
-echo "			return false;\n";
-echo "		}\n";
-echo "		//open file manager/clip library pane [Ctrl+Q]\n";
-echo "		else if ((event.which == 113 && event.ctrlKey) || (event.which == 19)) {\n";
-echo "			parent.toggle_sidebar();\n";
-echo "			parent.focus_editor();\n";
-echo "			return false;\n";
-echo "		}\n";
-echo "		//block backspace\n";
-echo "		else if (event.which == 8) {\n";
-echo "			return false;\n";
-echo "		}\n";
-echo "		//otherwise, default action\n";
-echo "		else {\n";
-echo "			return true;\n";
-echo "		}\n";
-echo "	});\n";
-echo "</script>";
 
-echo "<head>";
-echo "<body style='margin: 0; padding: 5px;' onfocus='null;'>";
-echo "<div align='center' valign='1'>";
-echo "<table  width='100%' height='100%' border='0' cellpadding='0' cellspacing='2'>\n";
-echo "<tr class='border'>\n";
-echo "	<td align=\"left\" valign='top' nowrap>\n";
-echo "      <TABLE BORDER=0 cellpadding='0' cellspacing='0'><TR><TD><a href='javascript:void(0);' onclick=\"window.open('clipoptions.php?id=".$row[id]."','clipwin','left=20,top=20,width=310,height=350,toolbar=0,resizable=0');\" style='text-decoration:none; cursor: pointer;' title='Manage Clips'><IMG SRC=\"resources/images/icon_gear.png\" border='0' align='absmiddle' style='margin: 0px 2px 4px 0px;'>".$text['label-clip-library']."</a><DIV style=''>\n"; //display:none
+//save file
+key_press('ctrl+s', 'down', 'window', null, null, "if (parent.document.getElementById('frm_edit')) { parent.$('form#frm_edit').submit(); return false; }", true);
 
-$sql = "select * from v_clips ";
-$sql .= "order by clip_folder ";
+//open file manager/clip library pane
+key_press('ctrl+q', 'down', 'window', null, null, "if (parent.document.getElementById('sidebar')) { parent.toggle_sidebar(); parent.focus_editor(); return false; }", true);
+
+//prevent backspace (browser history back)
+key_press('backspace', 'down', 'window', null, null, 'return false;', true);
+
+//keyboard shortcut to execute command (when included on command page)
+key_press('ctrl+enter', 'down', 'window', null, null, "if (!parent.document.getElementById('sidebar')) { parent.$('form#frm').submit(); return false; }", true);
+
+echo "</head>\n";
+echo "<body style='margin: 0; padding: 5px;' onfocus='blur();'>\n";
+
+echo "<div style='text-align: left; padding-top: 3px;'>\n";
+echo "<div style='padding-bottom: 3px;'><a href='javascript:void(0);' onclick=\"window.open('clipoptions.php?id=".$row[id]."','clipwin','left=20,top=20,width=310,height=350,toolbar=0,resizable=0');\" style='text-decoration:none; cursor: pointer;' title=\"".$text['label-clip-library']."\"><img src='".PROJECT_PATH."resources/images/icon_gear.png' border='0' align='absmiddle' style='margin: 0px 2px 4px -1px;'>".$text['label-clip-library']."</a></div>\n";
+
+$sql = "select * from v_clips order by clip_folder asc, clip_name asc";
 $prep_statement = $db->prepare(check_sql($sql));
 $prep_statement->execute();
 $result = $prep_statement->fetchAll(PDO::FETCH_NAMED);
 $result_count = count($result);
 
-if ($result_count > 0) { //no results
-	$last_folder = '';
-	$tag_open = '';
-	$x = 0;
-	$current_depth = 0;
-	$previous_depth = 0;
-	foreach($result as $row) {
-		$current_depth = count(explode ("/", $row['clip_folder']));
-		if ($current_depth < $previous_depth) {
-			$count = ($previous_depth - $current_depth);
-			$i=0;
-			while($i < $count){
-				echo "</DIV></TD></TR></TABLE>\n";
-				$i++;
+if ($result_count > 0) {
+	$master_array = array();
+	foreach ($result as $row) {
+		$clip_folder = rtrim($row['clip_folder'], '/');
+		$clip_folder .= '/'.$row['clip_name'];
+
+		$parts = explode('/', $clip_folder);
+		$folders = array();
+		while ($bottom = array_pop($parts)) {
+			if (sizeof($folders) > 0) {
+				$folders = array($bottom => $folders);
 			}
-			echo "</DIV></TD></TR></TABLE>\n";
+			else {
+				$clip['uuid'] = $row['clip_uuid'];
+				$clip['name'] = $row['clip_name'];
+				$clip['before'] = $row['clip_text_start'];
+				$clip['after'] = $row['clip_text_end'];
+				$folders = array($bottom => $clip);
+			}
 		}
 
-		if ($last_folder != $row['clip_folder']) {
-			$clip_folder_name = str_replace ($previous_folder_name, "", $row['clip_folder']);
-			$clip_folder_name = str_replace ("/", "", $clip_folder_name);
-			echo "<TABLE BORDER=0 cellpadding='0' cellspacing='0'><TR><TD style='padding-left: 16px;'><A onClick=\"Toggle(this);\" style='cursor: pointer; text-decoration: none;'><IMG SRC=\"resources/images/icon_folder.png\" border='none' align='absmiddle' style='margin: 1px 2px 3px 0px;'>".$clip_folder_name."</A><DIV style='display:none'>\n\n";
-			$tag_open = 1;
+		$master_array = array_merge_recursive($master_array, $folders);
+	}
+
+	function parse_array($arr) {
+		if (is_array($arr)) {
+			//folder/clip
+			foreach ($arr as $name => $sub_arr) {
+				if ($name != $sub_arr['name']) {
+					//folder
+					echo "<a onclick='Toggle(this);' style='display: block; cursor: pointer; text-decoration: none;'><img src='resources/images/icon_folder.png' border='none' align='absmiddle' style='margin: 1px 2px 3px 0px;'>".$name."</a>";
+					echo "<div style='display: none; padding-left: 16px;'>\n";
+					parse_array($sub_arr);
+					echo "</div>\n";
+				}
+				else {
+					//clip
+					echo "<div style='white-space: nowrap;'>\n";
+					echo "<a href='javascript:void(0);' onclick=\"parent.insert_clip(document.getElementById('before_".$sub_arr['uuid']."').value, document.getElementById('after_".$sub_arr['uuid']."').value);\">";
+					echo "<img src='resources/images/icon_file.png' border='0' align='absmiddle' style='margin: 1px 2px 3px -1px;'>";
+					echo $sub_arr['name'];
+					echo "</a>\n";
+					echo "<textarea style='display: none' id='before_".$sub_arr['uuid']."'>".$sub_arr['before']."</textarea>\n";
+					echo "<textarea style='display: none' id='after_".$sub_arr['uuid']."'>".$sub_arr['after']."</textarea>\n";
+					echo "</div>\n";
+				}
+			}
 		}
+	}
+	parse_array($master_array);
+}
 
-		$previous_depth = $current_depth;
-		$previous_folder_name = $row['clip_folder'];
+echo "</div>\n";
 
-		echo "<textarea style='display:none' id='clip_lib_start".$row['clip_uuid']."'>".$row['clip_text_start']."</textarea>\n";
-		echo "<textarea style='display:none' id='clip_lib_end".$row['clip_uuid']."'>".$row['clip_text_end']."</textarea>\n";
-		echo "\n";
-		echo "<TABLE BORDER=0 cellpadding='0' cellspacing='0'><TR><TD align='bottom' style='padding-left: 16px;'><IMG SRC=\"resources/images/icon_file.png\" border='0' align='absmiddle' style='margin: 1px 2px 3px -1px;'>";
-		echo "<a href='javascript:void(0);' onclick=\"parent.insert_clip(document.getElementById('clip_lib_start".$row['clip_uuid']."').value, document.getElementById('clip_lib_end".$row['clip_uuid']."').value);\">".$row['clip_name']."</a>\n";
-		echo "</TD></TR></TABLE>\n";
-		echo "\n\n";
-
-		$last_folder = $row['clip_folder'];
-
-		if ($c==0) { $c=1; } else { $c=0; }
-	} //end foreach
-	unset($sql, $result, $row_count);
-
-} //end if results
-
-echo "\n";
-echo "      </DIV></TD></TR></TABLE>\n";
-
-echo "</td>\n";
-echo "</tr>\n";
-echo "</table>\n";
-echo "</div>";
+//echo "<pre>".print_r($master_array, true)."</pre>";
 
 require_once "footer.php";
-
-unset ($result_count);
-unset ($result);
-unset ($key);
-unset ($val);
-unset ($c);
 ?>

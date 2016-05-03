@@ -240,7 +240,7 @@ else {
 							$sql_insert .= "domain_uuid, ";
 							$sql_insert .= "device_mac_address, ";
 							$sql_insert .= "device_template, ";
-							$sql_insert .= "device_provision_enable ";
+							$sql_insert .= "device_enabled ";
 							$sql_insert .= ") ";
 							$sql_insert .= "values ";
 							$sql_insert .= "(";
@@ -926,7 +926,7 @@ if (count($_POST) > 0 && strlen($_POST["persistformvar"]) == 0) {
 //get the users
 	$sql = "SELECT * FROM v_users ";
 	$sql .= "where domain_uuid = '".$domain_uuid."' ";
-	foreach($assigned_user_uuids as $assigned_user_uuid) {
+	if (isset($assigned_user_uuids)) foreach($assigned_user_uuids as $assigned_user_uuid) {
 		$sql .= "and user_uuid <> '".$assigned_user_uuid."' ";
 	}
 	unset($assigned_user_uuids);
@@ -1005,7 +1005,7 @@ if (count($_POST) > 0 && strlen($_POST["persistformvar"]) == 0) {
 	echo "<td width='70%' align='right' valign='top'>\n";
 	echo "	<input type='button' class='btn' alt='".$text['button-back']."' onclick=\"window.location='extensions.php'\" value='".$text['button-back']."'>\n";
 	if ($action == 'update' && (permission_exists('follow_me') || permission_exists('call_forward') || permission_exists('do_not_disturb'))) {
-		echo "	<input type='button' class='btn' alt='".$text['button-calls']."' onclick=\"window.location='../calls/call_edit.php?id=".$extension_uuid."';\" value='".$text['button-calls']."'>\n";
+		echo "	<input type='button' class='btn' alt='".$text['button-call_routing']."' onclick=\"window.location='../calls/call_edit.php?id=".$extension_uuid."';\" value='".$text['button-call_routing']."'>\n";
 	}
 	if ($action == "update") {
 		echo "	<input type='button' class='btn' alt='".$text['button-copy']."' onclick=\"copy_extension();\" value='".$text['button-copy']."'>\n";
@@ -1289,13 +1289,11 @@ if (count($_POST) > 0 && strlen($_POST["persistformvar"]) == 0) {
 										}
 									}
 								}
-								closedir($dh_sub);
 							}
 							echo "</optgroup>";
 						}
 					}
 				}
-				closedir($dh);
 			}
 			echo "</select>\n";
 			echo "		</td>\n";

@@ -111,7 +111,7 @@ if (!$included) {
 		$fax_cover_font = $_SESSION['fax']['cover_font']['text'];
 }
 else{
-	require_once "resources/classes/EventSocket.php";
+	require_once "resources/classes/event_socket.php";
 }
 
 if(!function_exists('correct_path')) {
@@ -151,15 +151,15 @@ if(!function_exists('fax_enqueue')) {
 			$date_utc_now_sql  = "datetime('now')";
 		}
 		$sql = <<<HERE
-INSERT INTO v_fax_tasks( fax_task_uuid, fax_uuid, 
-	task_next_time, task_lock_time, 
-	task_fax_file, task_wav_file, task_uri, task_dial_string, task_dtmf, 
+INSERT INTO v_fax_tasks( fax_task_uuid, fax_uuid,
+	task_next_time, task_lock_time,
+	task_fax_file, task_wav_file, task_uri, task_dial_string, task_dtmf,
 	task_interrupted, task_status, task_no_answer_counter, task_no_answer_retry_counter, task_retry_counter,
 	task_reply_address, task_description)
 VALUES (?, ?,
-	$date_utc_now_sql, NULL, 
-	?, ?, ?, ?, ?, 
-	'false', 0, 0, 0, 0, 
+	$date_utc_now_sql, NULL,
+	?, ?, ?, ?, ?,
+	'false', 0, 0, 0, 0,
 	?, ?);
 HERE;
 		$stmt = $db->prepare($sql);
@@ -720,7 +720,7 @@ function fax_split_dtmf(&$fax_number, &$fax_dtmf){
 			else {
 				//send the external call
 				$fax_uri = $route_array[0];
-				$t38 = "fax_enable_t38=false,fax_enable_t38_request=false,";
+				$t38 = "fax_enable_t38=true,fax_enable_t38_request=true,";
 			}
 
 			if ($fax_send_mode != 'queue') {
@@ -1101,3 +1101,4 @@ function showgrid($pdf) {
 }
 */
 ?>
+>>>>>>> refs/remotes/fusionpbx/master

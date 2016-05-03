@@ -59,12 +59,22 @@ else {
 	$setting_indenting = ($_SESSION["editor"]["indent_guides"]["boolean"] != '') ? $_SESSION["editor"]["indent_guides"]["boolean"] : 'false';
 	$setting_numbering = ($_SESSION["editor"]["line_numbers"]["boolean"] != '') ? $_SESSION["editor"]["line_numbers"]["boolean"] : 'true';
 	$setting_preview = ($_SESSION["editor"]["live_preview"]["boolean"] != '') ? $_SESSION["editor"]["live_preview"]["boolean"] : 'true';
+
+//get and then set the favicon
+	if (isset($_SESSION['theme']['favicon']['text'])){
+		$favicon = $_SESSION['theme']['favicon']['text'];
+	}
+	else {
+		$favicon = '<!--{project_path}-->/themes/enhanced/favicon.ico';
+	}
+
 ?>
 
 <html>
 <head>
 	<meta http-equiv='Content-Type' content='text/html; charset=UTF-8' />
-	<title><?php echo $title;?></title>
+	<title><?php echo $title; ?></title>
+	<link rel="icon" type="image/x-icon" href="<?php echo $favicon; ?>">
 	<script language="JavaScript" type="text/javascript" src="<?php echo PROJECT_PATH; ?>/resources/jquery/jquery-1.11.1.js"></script>
 	<script language="JavaScript" type="text/javascript">
 		function submit_check() {
@@ -263,28 +273,14 @@ else {
 		document.getElementById('editor').style.fontSize='<?php echo $setting_size;?>';
 		focus_editor();
 
-	//prevent submit (file save) with enter key on file path input
-		$('#current_file').keypress(function(event){
-			if (event.which == 13) { return false; }
-		});
+	//prevent form submit with enter key on file path input
+		<?php key_press('enter', 'down', '#current_file', null, null, 'return false;', false); ?>
 
-	//keyboard shortcut to save file
-		$(window).keypress(function(event) {
-			//save file [Ctrl+S]
-			if ((event.which == 115 && event.ctrlKey) || (event.which == 19)) {
-				$('form#frm_edit').submit();
-				return false;
-			}
-			//open file manager/clip library pane [Ctrl+Q]
-			else if ((event.which == 113 && event.ctrlKey) || (event.which == 19)) {
-				toggle_sidebar();
-				return false;
-			}
-			//otherwise, default action
-			else {
-				return true;
-			}
-		});
+	//save file
+		<?php key_press('ctrl+s', 'down', 'window', null, null, "$('form#frm_edit').submit(); return false;", false); ?>
+
+	//open file manager/clip library pane
+		<?php key_press('ctrl+q', 'down', 'window', null, null, 'toggle_sidebar(); focus_editor(); return false;', false); ?>
 
 	//remove certain keyboard shortcuts
 		editor.commands.bindKey("Ctrl-T", null); //new browser tab

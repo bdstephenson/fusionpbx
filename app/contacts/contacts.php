@@ -143,7 +143,6 @@ else {
 				$sql .= "		lower(contact_title) like '%".$search_all."%' or \n";
 				$sql .= "		lower(contact_category) like '%".$search_all."%' or \n";
 				$sql .= "		lower(contact_role) like '%".$search_all."%' or \n";
-				$sql .= "		lower(contact_email) like '%".$search_all."%' or \n";
 				$sql .= "		lower(contact_url) like '%".$search_all."%' or \n";
 				$sql .= "		lower(contact_time_zone) like '%".$search_all."%' or \n";
 				$sql .= "		lower(contact_note) like '%".$search_all."%' or \n";
@@ -166,7 +165,7 @@ else {
 	}
 
 //prepare to page the results
-	$rows_per_page = 100;
+	$rows_per_page = ($_SESSION['domain']['paging']['numeric'] != '') ? $_SESSION['domain']['paging']['numeric'] : 50;
 	$param = "";
 	$page = $_GET['page'];
 	if (strlen($page) == 0) { $page = 0; $_GET['page'] = 0; }

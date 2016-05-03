@@ -43,7 +43,6 @@ else {
 //get post or get variables from http
 	if (count($_REQUEST) > 0) {
 		$cdr_id = check_str($_REQUEST["cdr_id"]);
-		$missed = check_str($_REQUEST["missed"]);
 		$direction = check_str($_REQUEST["direction"]);
 		$caller_id_name = check_str($_REQUEST["caller_id_name"]);
 		$caller_id_number = check_str($_REQUEST["caller_id_number"]);
@@ -61,6 +60,7 @@ else {
 		$duration = check_str($_REQUEST["duration"]);
 		$billsec = check_str($_REQUEST["billsec"]);
 		$hangup_cause = check_str($_REQUEST["hangup_cause"]);
+		$call_result = check_str($_REQUEST["call_result"]);
 		$uuid = check_str($_REQUEST["uuid"]);
 		$bleg_uuid = check_str($_REQUEST["bleg_uuid"]);
 		$accountcode = check_str($_REQUEST["accountcode"]);
@@ -73,24 +73,12 @@ else {
 		$order = check_str($_REQUEST["order"]);
 		if (strlen(check_str($_REQUEST["mos_comparison"])) > 0) {
 			switch(check_str($_REQUEST["mos_comparison"])) {
-				case 'less':
-					$mos_comparison = "<";
-					break;
-				case 'greater':
-					$mos_comparison = ">";
-					break;
-				case 'lessorequal':
-					$mos_comparison = "<=";
-					break;
-				case 'greaterorequal':
-					$mos_comparison = ">=";
-					break;
-				case 'equal':
-					$mos_comparison = "<";
-					break;
-				case 'notequal':
-					$mos_comparison = "<>";
-					break;
+				case 'less': $mos_comparison = "<"; break;
+				case 'greater': $mos_comparison = ">"; break;
+				case 'lessorequal': $mos_comparison = "<="; break;
+				case 'greaterorequal': $mos_comparison = ">="; break;
+				case 'equal': $mos_comparison = "<"; break;
+				case 'notequal': $mos_comparison = "<>"; break;
 			}
          } else {
              $mos_comparison = '';
@@ -102,9 +90,6 @@ else {
 
 
 //build the sql where string
-	if ($missed == true) {
-		$sql_where_ands[] = "billsec = '0'";
-	}
 	if (strlen($start_epoch) > 0 && strlen($stop_epoch) > 0) {
 		$sql_where_ands[] = "start_epoch BETWEEN ".$start_epoch." AND ".$stop_epoch." ";
 	}
@@ -144,6 +129,44 @@ else {
 	if (strlen($duration) > 0) { $sql_where_ands[] = "duration like '%".$duration."%'"; }
 	if (strlen($billsec) > 0) { $sql_where_ands[] = "billsec like '%".$billsec."%'"; }
 	if (strlen($hangup_cause) > 0) { $sql_where_ands[] = "hangup_cause like '%".$hangup_cause."%'"; }
+	if (strlen($call_result) > 0) {
+		switch ($call_result) {
+			case 'answered':
+				$sql_where_ands[] = "(answer_stamp is not null and bridge_uuid is not null)";
+				break;
+			case 'voicemail':
+				$sql_where_ands[] = "(answer_stamp is not null and bridge_uuid is null)";
+				break;
+			case 'missed':
+				$sql_missed_1 = "( (answer_stamp is not null and bridge_uuid is null) or (";
+				$sql_missed_2 = ") )";
+			case 'cancelled':
+				if ($direction == 'inbound' || $direction == 'local' || $call_result == 'missed') {
+					$sql_where_ands_cancelled = "(answer_stamp is null and bridge_uuid is null and sip_hangup_disposition <> 'send_refuse')";
+				}
+				else if ($direction == 'outbound') {
+					$sql_where_ands_cancelled = "(answer_stamp is null and bridge_uuid is not null)";
+				}
+				else {
+					$sql_where_ands_cancelled = "
+						((
+							(direction = 'inbound' or direction = 'local')
+							and answer_stamp is null
+							and bridge_uuid is null
+							and sip_hangup_disposition <> 'send_refuse'
+						)
+						or (
+							direction = 'outbound'
+							and answer_stamp is null
+							and bridge_uuid is not null
+						))";
+				}
+				$sql_where_ands[] = ($call_result == 'missed') ? $sql_missed_1.' '.$sql_where_ands_cancelled.' '.$sql_missed_2 : $sql_where_ands_cancelled;
+				break;
+			default: //failed
+				$sql_where_ands[] = "(answer_stamp is null and bridge_uuid is null and billsec = 0 and sip_hangup_disposition = 'send_refuse')";
+		}
+	}
 	if (strlen($uuid) > 0) { $sql_where_ands[] = "uuid = '".$uuid."'"; }
 	if (strlen($bleg_uuid) > 0) { $sql_where_ands[] = "bleg_uuid = '".$bleg_uuid."'"; }
 	if (strlen($accountcode) > 0) { $sql_where_ands[] = "accountcode = '".$accountcode."'"; }
@@ -201,7 +224,6 @@ else {
 
 //set the param variable which is used with paging
 	$param = "&cdr_id=".$cdr_id;
-	$param .= "&missed=".$missed;
 	$param .= "&direction=".$direction;
 	$param .= "&caller_id_name=".$caller_id_name;
 	$param .= "&caller_id_number=".$caller_id_number;
@@ -219,6 +241,7 @@ else {
 	$param .= "&duration=".$duration;
 	$param .= "&billsec=".$billsec;
 	$param .= "&hangup_cause=".$hangup_cause;
+	$param .= "&call_result=".$call_result;
 	$param .= "&uuid=".$uuid;
 	$param .= "&bleg_uuid=".$bleg_uuid;
 	$param .= "&accountcode=".$accountcode;
@@ -269,12 +292,15 @@ else {
 			if ($num_rows > $_SESSION['cdr']['limit']['numeric']) {
 				$num_rows = $_SESSION['cdr']['limit']['numeric'];
 			}
-			if ($rows_per_page > $_SESSION['cdr']['limit']['numeric']) {
-				$rows_per_page = $_SESSION['cdr']['limit']['numeric'];
+			if ($_SESSION['domain']['paging']['numeric'] != '' && $rows_per_page > $_SESSION['domain']['paging']['numeric']) {
+				$rows_per_page = $_SESSION['domain']['paging']['numeric'];
+			}
+			else {
+				$rows_per_page = 50;
 			}
 
 		//prepare to page the results
-			//$rows_per_page = 150; //set on the page that includes this page
+			//$rows_per_page = ($_SESSION['domain']['paging']['numeric'] != '') ? $_SESSION['domain']['paging']['numeric'] : 50; //set on the page that includes this page
 			$page = $_GET['page'];
 			if (strlen($page) == 0) { $page = 0; $_GET['page'] = 0; }
 			list($paging_controls_mini, $rows_per_page, $var_3) = paging($num_rows, $param, $rows_per_page, true); //top
@@ -299,6 +325,8 @@ else {
 	$sql .= "caller_id_number, ";
 	$sql .= "destination_number, ";
 	$sql .= "accountcode, ";
+	$sql .= "answer_stamp, ";
+	$sql .= "sip_hangup_disposition, ";
 	if (file_exists($_SERVER["PROJECT_ROOT"]."/app/billing/app_config.php")){
 		$sql .= "call_sell, ";
 	}
@@ -337,6 +365,5 @@ else {
 	$c = 0;
 	$row_style["0"] = "row_style0";
 	$row_style["1"] = "row_style1";
-	$row_style["2"] = "row_style2";
 
 ?>
